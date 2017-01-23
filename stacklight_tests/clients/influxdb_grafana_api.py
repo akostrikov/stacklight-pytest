@@ -1,39 +1,10 @@
 import re
 import urlparse
 
-import requests
-from requests.packages.urllib3 import poolmanager
-
 from stacklight_tests import utils
 
 
-class TestHTTPAdapter(requests.adapters.HTTPAdapter):
-    """Custom transport adapter to disable host checking in https requests."""
-
-    def init_poolmanager(self, connections, maxsize, block=False):
-        self.poolmanager = poolmanager.PoolManager(assert_hostname=False)
-
-
-def check_http_get_response(url, expected_code=200, msg=None, **kwargs):
-    """Perform a HTTP GET request and assert that the HTTP server replies with
-    the expected code.
-    :param url: the requested URL
-    :type url: str
-    :param expected_code: the expected HTTP response code. Defaults to 200
-    :type expected_code: int
-    :param msg: the assertion message. Defaults to None
-    :type msg: str
-    :returns: HTTP response object
-    :rtype: requests.Response
-    """
-    session = requests.Session()
-    session.mount("https://", TestHTTPAdapter())
-    cert = utils.get_fixture("rootCA.pem")
-    msg = msg or "%s responded with {0}, expected {1}" % url
-    response = session.get(url, verify=cert, **kwargs)
-    if expected_code is not None:
-        assert response.status_code == expected_code, msg
-    return response
+check_http_get_response = utils.check_http_get_response
 
 
 class InfluxdbApi(object):
@@ -47,10 +18,10 @@ class InfluxdbApi(object):
 
         self.influx_db_url = "http://{0}:{1}/".format(self.address, self.port)
 
-    def do_influxdb_query(self, query, expected_code=200):
+    def do_influxdb_query(self, query, expected_codes=(200,)):
         return check_http_get_response(
             url=urlparse.urljoin(self.influx_db_url, "query"),
-            expected_code=expected_code,
+            expected_codes=expected_codes,
             params={
                 "db": self.db_name,
                 "u": self.username,
@@ -142,7 +113,10 @@ class InfluxdbApi(object):
             if not result:
                 return False
             return result['series'][0]['values'][0][1] == expected_value
-        utils.wait(lambda: check_status(), timeout=5 * 60)
+        msg = "There is no such value: {} in results of query: {}".format(
+            expected_value, query
+        )
+        utils.wait(lambda: check_status(), timeout=5 * 60, timeout_msg=msg)
 
     def check_cluster_status(self, name, expected_status, interval='3m'):
         query = ("SELECT last(value) FROM cluster_status WHERE "
@@ -196,6 +170,8 @@ class Dashboard(object):
         # NOTE(rpromyshlennikov): temporary fix for unknown hostname
         # (node-1 vs node-1.test.domain.local)
         query = query.replace(".test.domain.local", "")
+        # NOTE(rpromyshlennikov): fix for regex queries (e.g: for mount points)
+        query = query.replace("^/", "^\/")
         return query
 
     @staticmethod
@@ -299,15 +275,16 @@ class GrafanaApi(object):
         check_http_get_response(self.grafana_api_url.replace("/api", "/login"))
         check_http_get_response(self.get_api_url('/org'), auth=self.auth)
         check_http_get_response(self.get_api_url('/org'),
-                                auth=('agent', 'rogue'), expected_code=401)
+                                auth=('agent', 'rogue'), expected_codes=(401,))
         check_http_get_response(self.get_api_url('/org'),
-                                auth=('admin', 'rogue'), expected_code=401)
+                                auth=('admin', 'rogue'), expected_codes=(401,))
         check_http_get_response(self.get_api_url('/org'),
-                                auth=('agent', 'admin'), expected_code=401)
+                                auth=('agent', 'admin'), expected_codes=(401,))
 
     def _get_raw_dashboard(self, name):
         dashboard_url = self.get_api_url("/dashboards/db/{}".format(name))
-        response = check_http_get_response(dashboard_url, auth=self.auth)
+        response = check_http_get_response(
+            dashboard_url, expected_codes=[], auth=self.auth)
         if response.status_code == 200:
             return response
         elif response.status_code == 404:

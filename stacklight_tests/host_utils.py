@@ -1,12 +1,10 @@
 import subprocess
 
-import yaml
-
 from stacklight_tests import utils
 
 
 def main():
-    config = yaml.load(open(utils.get_fixture("config.yaml")))
+    config = utils.load_config()
     auth = config.get("auth")
     cert_content = auth["public_ssl"]["cert_data"]["content"]
     if not cert_content:
@@ -15,6 +13,7 @@ def main():
     hostname = auth["public_ssl"]["hostname"]
     script = utils.get_fixture("update_hosts.sh")
     subprocess.check_call(["sudo", script, ip, hostname])
+
 
 if __name__ == '__main__':
     main()
