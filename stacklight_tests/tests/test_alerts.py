@@ -132,13 +132,18 @@ class TestAlerts(base_test.BaseLMATest):
 
         Duration 10m
         """
-        controller = self.cluster.get_by_address(
-            "172.16.10.102")  # .get_random_controller() non primary for db?
+        # ???? non primary for db?
+        controller = self.cluster.get_random_controller()
+
+        # Pre-check that not all is down
         self.influxdb_api.check_member('nova_logs', self.OKAY_STATUS)
 
+        # Every service is doing some heartbeats/checks,
+        # so it is guaranteed to get into failing state
         with self.make_logical_db_unavailable('nova', controller):
             self.influxdb_api.check_member('nova_logs', self.WARNING_STATUS)
 
+        # Post-check that not all is down
         self.influxdb_api.check_member('nova_logs', self.OKAY_STATUS)
 
     @pytest.mark.fuel
