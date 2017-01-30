@@ -160,8 +160,7 @@ class TestAlerts(base_test.BaseLMATest):
         # self.influxdb_api.check_member('nova_api_http_errors',
         #                                self.OKAY_STATUS)
 
-    @pytest.mark.fuel
-    @pytest.mark.xfail(raises=FuelEnvAtMK)
+    @pytest.mark.check_env('is_fuel')
     def test_nova_api_logs_errors_alarms_fuel(self):
         """Check that nova-logs-error and nova-api-http-errors alarms work as
            expected.
@@ -231,8 +230,7 @@ class TestAlerts(base_test.BaseLMATest):
                        interval=10,
                        timeout_msg='No message')
 
-    @pytest.mark.fuel
-    @pytest.mark.xfail(raises=FuelEnvAtMK)
+    @pytest.mark.check_env('is_fuel')
     def test_neutron_api_logs_errors_alarms_fuel(self):
         """Check that neutron-logs-error and neutron-api-http-errors
            alarms work as expected.
@@ -265,8 +263,6 @@ class TestAlerts(base_test.BaseLMATest):
             self.verify_service_alarms(
                 get_agents_list, 1, metrics, self.WARNING_STATUS)
 
-
-    @pytest.mark.mk
     def test_glance_api_logs_errors_alarms(self):
         """Check that glance-logs-error and glance-api-http-errors alarms
            work as expected.
@@ -298,8 +294,7 @@ class TestAlerts(base_test.BaseLMATest):
                        interval=10,
                        timeout_msg='No message')
 
-    @pytest.mark.fuel
-    @pytest.mark.xfail(raises=FuelEnvAtMK)
+    @pytest.mark.check_env('is_fuel')
     def test_glance_api_logs_errors_alarms_fuel(self):
         """Check that glance-logs-error and glance-api-http-errors alarms
            work as expected.
@@ -334,8 +329,6 @@ class TestAlerts(base_test.BaseLMATest):
             self.verify_service_alarms(
                 get_images_list, 1, metrics, self.WARNING_STATUS)
 
-
-    @pytest.mark.mk
     def test_heat_api_logs_errors_alarms(self):
         """Check that heat-logs-error and heat-api-http-errors alarms work as
            expected.
@@ -366,8 +359,7 @@ class TestAlerts(base_test.BaseLMATest):
                        interval=10,
                        timeout_msg='No message')
 
-    @pytest.mark.fuel
-    @pytest.mark.xfail(raises=FuelEnvAtMK)
+    @pytest.mark.check_env('is_fuel')
     def check_heat_api_logs_errors_alarms_fuel(self):
         """Check that heat-logs-error and heat-api-http-errors alarms work as
            expected.
@@ -430,8 +422,7 @@ class TestAlerts(base_test.BaseLMATest):
                        interval=10,
                        timeout_msg='No message')
 
-    @pytest.mark.fuel
-    @pytest.mark.xfail(raises=FuelEnvAtMK)
+    @pytest.mark.check_env('is_fuel')
     def test_cinder_api_logs_errors_alarms_fuel(self):
         """Check that cinder-logs-error and cinder-api-http-errors alarms
            work as expected.
@@ -463,7 +454,6 @@ class TestAlerts(base_test.BaseLMATest):
             self.verify_service_alarms(
                 get_volumes_list, 1, metrics, self.WARNING_STATUS)
 
-    @pytest.mark.mk
     def test_keystone_api_logs_errors_alarms(self):
         """Check that keystone-logs-error, keystone-public-api-http-errors and
            keystone-admin-api-http-errors alarms work as expected.
@@ -497,8 +487,7 @@ class TestAlerts(base_test.BaseLMATest):
                        interval=10,
                        timeout_msg='No message')
 
-    @pytest.mark.fuel
-    @pytest.mark.xfail(raises=FuelEnvAtMK)
+    @pytest.mark.check_env('is_fuel')
     def test_keystone_api_logs_errors_alarms_fuel(self):
         """Check that keystone-logs-error, keystone-public-api-http-errors and
            keystone-admin-api-http-errors alarms work as expected.
@@ -587,44 +576,43 @@ class TestAlerts(base_test.BaseLMATest):
 
         controller.os.transport.exec_sync('initctl start swift-account')
 
-        @pytest.mark.fuel
-        @pytest.mark.xfail(raises=FuelEnvAtMK)
-        def test_swift_api_logs_errors_alarms_fuel(self):
-            """Check that swift-logs-error and swift-api-http-error alarms
-               work as expected.
+    @pytest.mark.check_env('is_fuel')
+    def test_swift_api_logs_errors_alarms_fuel(self):
+        """Check that swift-logs-error and swift-api-http-error alarms
+           work as expected.
 
-            Scenario:
-                1. Stop swift-account service on controller.
-                2. Run some swift stack list command repeatedly.
-                3. Check the last value of the swift-logs-error alarm
-                   in InfluxDB.
-                4. Check the last value of the swift-api-http-errors alarm
-                   in InfluxDB.
-                5. Start swift-account service on controller.
+        Scenario:
+            1. Stop swift-account service on controller.
+            2. Run some swift stack list command repeatedly.
+            3. Check the last value of the swift-logs-error alarm
+               in InfluxDB.
+            4. Check the last value of the swift-api-http-errors alarm
+               in InfluxDB.
+            5. Start swift-account service on controller.
 
-            Duration 15m
-            """
-            if self.is_mk:
-                raise FuelEnvAtMK()
-            controller = self.cluster.get_random_controller()
+        Duration 15m
+        """
+        if self.is_mk:
+            raise FuelEnvAtMK()
+        controller = self.cluster.get_random_controller()
 
-            def get_objects_list():
-                try:
-                    cmd = (". openrc "
-                           "&& export OS_AUTH_URL="
-                           "`(echo $OS_AUTH_URL | sed 's%:5000/%:5000/v2.0%')` "
-                           "&& swift list > /dev/null 2>&1")
-                    controller.os.transport.exec_sync(cmd)
-                except Exception:
-                    pass
+        def get_objects_list():
+            try:
+                cmd = (". openrc "
+                       "&& export OS_AUTH_URL="
+                       "`(echo $OS_AUTH_URL | sed 's%:5000/%:5000/v2.0%')` "
+                       "&& swift list > /dev/null 2>&1")
+                controller.os.transport.exec_sync(cmd)
+            except Exception:
+                pass
 
-            controller.os.transport.exec_sync('initctl stop swift-account')
+        controller.os.transport.exec_sync('initctl stop swift-account')
 
-            metrics = {"swift-api": "http_errors"}
-            self.verify_service_alarms(
-                get_objects_list, 10, metrics, self.WARNING_STATUS)
+        metrics = {"swift-api": "http_errors"}
+        self.verify_service_alarms(
+            get_objects_list, 10, metrics, self.WARNING_STATUS)
 
-            controller.os.transport.exec_sync('initctl start swift-account')
+        controller.os.transport.exec_sync('initctl start swift-account')
 
     @pytest.mark.skip(reason="Destructive")
     def test_hdd_errors_alarms(self):
@@ -663,7 +651,6 @@ class TestAlerts(base_test.BaseLMATest):
         self.influxdb_api.check_alarms(
             "node", "compute", "hdd-errors", hostname, self.CRITICAL_STATUS)
 
-    @pytest.mark.mk
     def test_services_alarms(self):
         """Check sanity services alarms.
 
@@ -721,7 +708,6 @@ class TestAlerts(base_test.BaseLMATest):
             self.influxdb_api.check_status(
                 service_mapper[service], host.hostname, status_operating)
 
-    @pytest.mark.mk
     def test_rabbitmq_pacemaker_alarms(self):
         """Check that rabbitmq-pacemaker-* alarms work as expected.
 
@@ -809,8 +795,7 @@ class TestAlerts(base_test.BaseLMATest):
                    interval=10,
                    timeout_msg='No message')
 
-    @pytest.mark.fuel
-    @pytest.mark.xfail(raises=FuelEnvAtMK)
+    @pytest.mark.check_env('is_fuel')
     def test_rabbitmq_pacemaker_alarms_fuel(self):
         """Check that rabbitmq-pacemaker-* alarms work as expected.
 
