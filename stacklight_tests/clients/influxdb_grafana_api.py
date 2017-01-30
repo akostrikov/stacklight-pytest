@@ -1,3 +1,4 @@
+import logging
 import re
 import urlparse
 
@@ -6,6 +7,7 @@ from stacklight_tests import utils
 
 check_http_get_response = utils.check_http_get_response
 
+LOG = logging.getLogger(__name__)
 
 class InfluxdbApi(object):
     def __init__(self, address, port, username, password, db_name):
@@ -82,22 +84,23 @@ class InfluxdbApi(object):
 
         utils.wait(check_result, timeout=60 * 5, interval=10, timeout_msg=msg)
 
-    def check_member(self, member, hostname, warning_level):
+    def check_member(self, member, warning_level):
         def checker():
             q = ('SELECT * FROM "status" WHERE "member" = \'{member}\' '
-                 'and hostname=\'{hostname}\''
                  'and time >= now() - 10s and value = {value} ;').format(
                 member=member,
-                hostname=hostname,
                 value=warning_level)
-            print(q)
-            return len(
-                self.do_influxdb_query(query=q).json()['results'][0]) != 0
+            res = self.do_influxdb_query(query=q).json()['results'][0] \
+                .get('series', [])
+            LOG.debug('Query is: %s', q)
+            return len(res) != 0
 
         utils.wait(checker,
                    timeout=60 * 5,
                    interval=10,
-                   timeout_msg='No message')
+                   timeout_msg='There are no suitable metrics: on {member}'
+                               ' with warning level {level}'.format(
+                       member=member, level=warning_level))
 
     def get_rabbitmq_memory_usage(self, interval="now() - 5m"):
         query = ("select last(value) from rabbitmq_used_memory "
