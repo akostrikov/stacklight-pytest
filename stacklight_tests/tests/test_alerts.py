@@ -119,32 +119,44 @@ class TestAlerts(base_test.BaseLMATest):
 
     @pytest.mark.mk_nova
     def test_nova_api_logs_errors_alarms(self):
-        """Check that nova-logs-error and nova-api-http-errors alarms work as
-           expected.
+        """Check that nova-logs-error and alarms work as expected.
 
         Scenario:
-            1. Rename all nova tables to UPPERCASE.
-            2. Run some nova list command repeatedly.
-            3. Check the last value of the nova-logs-error alarm in InfluxDB.
-            4. Check the last value of the nova-api-http-errors alarm
-               in InfluxDB.
-            5. Revert all nova tables names to lowercase.
+            1. Check that services are sending ok logs metrics.
+            2. Rename all nova tables to UPPERCASE.
+            3. Check the last value of the nova_logs and nova_api_http_errors
+            alarm in InfluxDB.
+            4. Revert all nova tables names to lowercase.
+            5. Check that services are sending ok logs metrics after restore.
 
         Duration 10m
         """
-        # ???? non primary for db?
+        # TODO(akostrikov) We have database replication and virtual ip for
+        # what is considered master. If we get to primary database - the change
+        # is affecting the whole cluster. Otherwise - it is failing only local
+        # requests because most of services use virtual ip for db.
+        # TODO(akostrikov) Some controllers do not have metrics at all.
+        # It should be checked by host locality.
+
+        #nova_api_http_errors
         controller = self.cluster.get_random_controller()
 
         # Pre-check that not all is down
         self.influxdb_api.check_member('nova_logs', self.OKAY_STATUS)
+        self.influxdb_api.check_member('nova_api_http_errors',
+                                       self.OKAY_STATUS)
 
         # Every service is doing some heartbeats/checks,
         # so it is guaranteed to get into failing state
         with self.make_logical_db_unavailable('nova', controller):
             self.influxdb_api.check_member('nova_logs', self.WARNING_STATUS)
+            self.influxdb_api.check_member('nova_api_http_errors',
+                                           self.WARNING_STATUS)
 
         # Post-check that not all is down
         self.influxdb_api.check_member('nova_logs', self.OKAY_STATUS)
+        self.influxdb_api.check_member('nova_api_http_errors',
+                                       self.OKAY_STATUS)
 
     @pytest.mark.fuel
     @pytest.mark.xfail(raises=FuelEnvAtMK)
