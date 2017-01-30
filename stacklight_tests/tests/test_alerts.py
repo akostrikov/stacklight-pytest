@@ -100,7 +100,7 @@ class TestAlerts(base_test.BaseLMATest):
             creds = '-u debian-sys-maint -pworkshop'
         cmd = (
             "mysql -AN {creds} -e "
-            "\"select concat("
+            "\"SET wsrep_OSU_method='RSU';select concat("
             "'rename table {db_name}.', table_name, ' "
             "to {db_name}.' , {method}(table_name) , ';') "
             "from information_schema.tables "
@@ -117,7 +117,7 @@ class TestAlerts(base_test.BaseLMATest):
             exit_code, _, _ = controller.os.transport.exec_sync(
                 cmd.format(db_name=db_name, method='lower', creds=creds))
 
-    @pytest.mark.mk
+    @pytest.mark.mk_nova
     def test_nova_api_logs_errors_alarms(self):
         """Check that nova-logs-error and nova-api-http-errors alarms work as
            expected.
@@ -132,21 +132,10 @@ class TestAlerts(base_test.BaseLMATest):
 
         Duration 10m
         """
-        controller = self.cluster.get_random_controller()
-        influxdb_api = self.influxdb_api
-        warning = self.WARNING_STATUS
-
-        def check_nova_result():
-            query = 'SELECT * FROM "cluster_status" WHERE "cluster_name" = \'nova-control\' and time >= now() - 10s and value = {value} ;'.format(
-                value=warning)
-            return len(influxdb_api.do_influxdb_query(
-                query=query).json()['results'][0])
-        # nova_service
+        self.influxdb_api.check_member('nova_logs', self.OKAY_STATUS)
+        controller = self.cluster.get_by_address("172.16.10.102")#.get_random_controller() non primary for db?
         with self.make_logical_db_unavailable('nova', controller):
-            utils.wait(check_nova_result,
-                       timeout=60 * 5,
-                       interval=10,
-                       timeout_msg='No message')
+            self.influxdb_api.check_member('nova_logs', self.WARNING_STATUS)
 
     @pytest.mark.fuel
     @pytest.mark.xfail(raises=FuelEnvAtMK)

@@ -9,6 +9,7 @@ check_http_get_response = utils.check_http_get_response
 
 class InfluxdbApi(object):
     def __init__(self, address, port, username, password, db_name):
+        # type: (str, str, str, str, str) -> InfluxdbApi
         super(InfluxdbApi, self).__init__()
         self.address = address
         self.port = port
@@ -81,6 +82,20 @@ class InfluxdbApi(object):
 
         utils.wait(check_result, timeout=60 * 5, interval=10, timeout_msg=msg)
 
+    def check_member(self, member, warning_level):
+        def checker():
+            q = ('SELECT * FROM "status" WHERE "member" = \'{member}\' '
+                 'and time >= now() - 10s and value = {value} ;').format(
+                member=member,
+                value=warning_level)
+            return len(
+                self.do_influxdb_query(query=q).json()['results'][0]) != 0
+
+        utils.wait(checker,
+                   timeout=60 * 5,
+                   interval=10,
+                   timeout_msg='No message')
+
     def get_rabbitmq_memory_usage(self, interval="now() - 5m"):
         query = ("select last(value) from rabbitmq_used_memory "
                  "where time >= {interval}".format(interval=interval))
@@ -113,6 +128,7 @@ class InfluxdbApi(object):
             if not result:
                 return False
             return result['series'][0]['values'][0][1] == expected_value
+
         msg = "There is no such value: {} in results of query: {}".format(
             expected_value, query
         )
@@ -209,7 +225,7 @@ class Dashboard(object):
         template_queries = {
             "${}".format(item["name"]): item["query"]
             for item in self.dash_dict["dashboard"]["templating"]["list"]
-        }
+            }
         return self._compile_templates(template_queries)
 
     def get_panel_queries(self):
@@ -243,7 +259,7 @@ class Dashboard(object):
                     continue
                 query_table = self._parse_measurement_from_query(query)
                 if query_table and (
-                        query_table not in self.available_measurements):
+                            query_table not in self.available_measurements):
                     no_measurements_queries[key] = raw_query, query, {}
                     continue
                 raw_result = self._influxdb_api.do_influxdb_query(query).json()
