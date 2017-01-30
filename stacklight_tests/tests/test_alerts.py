@@ -132,10 +132,16 @@ class TestAlerts(base_test.BaseLMATest):
 
         Duration 10m
         """
-        self.influxdb_api.check_member('nova_logs', self.OKAY_STATUS)
-        controller = self.cluster.get_by_address("172.16.10.102")#.get_random_controller() non primary for db?
+        controller = self.cluster.get_by_address(
+            "172.16.10.102")  # .get_random_controller() non primary for db?
+        host = controller.hostname
+        self.influxdb_api.check_member('nova_logs', host, self.WARNING_STATUS)
+        self.influxdb_api.check_member('nova_logs', host, self.OKAY_STATUS)
+
         with self.make_logical_db_unavailable('nova', controller):
-            self.influxdb_api.check_member('nova_logs', self.WARNING_STATUS)
+            self.influxdb_api.check_member('nova_logs',
+                                           host,
+                                           self.WARNING_STATUS)
 
     @pytest.mark.fuel
     @pytest.mark.xfail(raises=FuelEnvAtMK)

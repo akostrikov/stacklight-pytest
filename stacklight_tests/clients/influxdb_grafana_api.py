@@ -82,12 +82,15 @@ class InfluxdbApi(object):
 
         utils.wait(check_result, timeout=60 * 5, interval=10, timeout_msg=msg)
 
-    def check_member(self, member, warning_level):
+    def check_member(self, member, hostname, warning_level):
         def checker():
             q = ('SELECT * FROM "status" WHERE "member" = \'{member}\' '
+                 'and hostname=\'{hostname}\''
                  'and time >= now() - 10s and value = {value} ;').format(
                 member=member,
+                hostname=hostname,
                 value=warning_level)
+            print(q)
             return len(
                 self.do_influxdb_query(query=q).json()['results'][0]) != 0
 
