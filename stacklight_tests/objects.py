@@ -44,6 +44,7 @@ class Cluster(object):
         return Cluster(hosts=[x for x in self.hosts if role in x.roles])
 
     def get_by_address(self, address):
+        # type: (str) -> Host
         for host in self.hosts:
             if host.address == address:
                 return host
