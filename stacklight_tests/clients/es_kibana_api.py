@@ -2,7 +2,7 @@ import logging
 
 import elasticsearch
 
-import utils
+from stacklight_tests import utils
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +14,7 @@ class EsKibanaApi(object):
             [{'host': host, 'port': port}])
         self._kibana_protocol = None
 
-    def query_elasticsearch(self, index_type, time_range="now-1h",
+    def query_elasticsearch(self, index_type="log", time_range="now-1h",
                             query_filter="*", size=100):
         all_indices = self.es.indices.get_aliases().keys()
         indices = filter(lambda x: index_type in x, sorted(all_indices))
@@ -28,18 +28,17 @@ class EsKibanaApi(object):
                         "Timestamp": {"from": time_range}}}}}}},
                 "size": size})
 
-    def check_notifications(self, expected_notifications, timeout=300,
+    def check_notifications(self, expected_notifications,
+                            index_type="notification", timeout=5 * 60,
                             interval=10, **kwargs):
         def _verify_notifications(expected_list):
-            output = self.query_elasticsearch(**kwargs)
-            got_list = list(
-                set([hit["_source"]["event_type"]
-                     for hit in output["hits"]["hits"]]))
-            for event_type in expected_list:
-                if event_type not in got_list:
-                    logger.info("{} event type not found in {}".format(
-                        event_type, got_list))
-                    return False
+            output = self.query_elasticsearch(index_type=index_type, **kwargs)
+            got = set(hit["_source"]["event_type"]
+                      for hit in output["hits"]["hits"])
+            delta = set(expected_list) - got
+            if delta:
+                logger.info("{} event type not found in {}".format(delta, got))
+                return False
             return True
 
         logger.info("Waiting to get all notifications")

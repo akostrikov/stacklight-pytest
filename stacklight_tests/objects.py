@@ -1,7 +1,7 @@
 import random
 
-import custom_exceptions as exceptions
-from clients.system import general_client
+import stacklight_tests.custom_exceptions as exceptions
+from stacklight_tests.clients.system import general_client
 
 
 class Cluster(object):
@@ -83,6 +83,8 @@ class Host(object):
         self.address = address
         self.roles = roles or []
         self.exec_command = self.os.exec_command
+        self.check_call = self.os.check_call
+        self.fqdn = kwargs.get("hostname") or self.long_hostname
 
     @property
     def hostname(self):
