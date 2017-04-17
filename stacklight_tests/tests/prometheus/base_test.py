@@ -1,4 +1,5 @@
 import logging
+from pprint import pprint
 
 from stacklight_tests.clients.prometheus import prometheus_client
 from stacklight_tests import objects
@@ -11,11 +12,8 @@ class BaseLMATest(object):
     @classmethod
     def setup_class(cls):
         cls.config = utils.load_config()
-        # TODO(rpromyshlennikov): make types as enum?
-        cls.env_type = cls.config.get("env", {}).get("type", "")
-        cls.is_mk = cls.env_type == 'mk'
 
-        nodes = cls.config.get("nodes")
+        nodes = cls.config.get("ssh")
         cls.cluster = objects.Cluster()
 
         for node_args in nodes:
@@ -29,12 +27,15 @@ class BaseLMATest(object):
                                      prometheus_config["prometheus_server_port"])
         )
 
+class TestProm(BaseLMATest):
+
     def test_prometheus_container(self):
         prometheus_nodes = self.cluster.filter_by_role("prometheus")
         docker_services = \
             prometheus_nodes[0].exec_command(
-                "docker service ls -f name=prometheus_server").splitlines()
-        docker_services = docker_services[:-1]
+                "docker service ls -f name=monitoring_server").splitlines()
+        print docker_services
+        docker_services = docker_services[1]
         service_id, name, mode, replicas, image = docker_services.split()
         currnet, planned = replicas.split("/")
         print "Repliacs", int(currnet)
@@ -45,16 +46,59 @@ class BaseLMATest(object):
             print node.fqdn, "Prometheus", status, "Up" in status
 
     def test_k8s_metrics(self):
-        print self.prometheus_api.get_query("kubelet_running_pod_count")
+        nodes = self.cluster.filter_by_role("kubernetes")
+        expected_hostnames = [node.fqdn.split(".")[0] for node in nodes]
+        unexpected_hostnames = []
+   
+        metrics = self.prometheus_api.get_query("kubelet_running_pod_count")
+
+        for metric in metrics:
+            hostname = metric["metric"]["instance"]
+            try:
+                expected_hostnames.remove(hostname)
+            except ValueError:
+                unexpected_hostnames.append(hostname)
+        assert unexpected_hostnames == []
+        assert expected_hostnames == []
 
     def test_etcd_metrics(self):
-        print self.prometheus_api.get_query("etcd_debugging_store_expires_total")
+        nodes = self.cluster.filter_by_role("etcd")
+        expected_hostnames = [node.address for node in nodes]
+        unexpected_hostnames = []
 
+        metrics = self.prometheus_api.get_query("kubelet_running_pod_count")
+
+        for metric in metrics:
+            hostname = metric["metric"]["instance"].split(":")[0]
+            try:
+                expected_hostnames.remove(hostname)
+            except ValueError:
+                unexpected_hostnames.append(hostname)
+        assert unexpected_hostnames == []
+        assert expected_hostnames == []
+      
     def test_telegraf_metrics(self):
-        print self.prometheus_api.get_query("system_uptime")
+        nodes = self.cluster.filter_by_role("telegraf")
+        expected_hostnames = [node.fqdn.split(".")[0] for node in nodes]
+        unexpected_hostnames = []
+
+        metrics = self.prometheus_api.get_query("system_uptime")
+
+        for metric in metrics:
+            hostname = metric["metric"]["host"]
+            try:
+                expected_hostnames.remove(hostname)
+            except ValueError:
+                unexpected_hostnames.append(hostname)
+        assert unexpected_hostnames == []
+        assert expected_hostnames == []
 
     def test_prometheus_metrics(self):
-        print self.prometheus_api.get_query("prometheus_local_storage_series_ops_total")
+        metric = self.prometheus_api.get_query("prometheus_local_storage_series_ops_total")
+        assert len(metric) != 0
 
-    def test_system_metrics(self):
-        print self.prometheus_api.get_query("system_load15")
+#    def test_system_metrics(self):
+#        nodes = self.cluster.filter_by_role("telegraf")
+#        node_hostnames = [node.fqdn.split(".")[0] for node in nodes]
+#        print node_hostnames
+#        pprint(self.prometheus_api.get_query("system_load15"))
