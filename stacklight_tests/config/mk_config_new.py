@@ -117,16 +117,16 @@ class MKConfig(object):
 
     def generate_prometheus_config(self):
         _param = self.get_application_node("prometheus")['parameters']
-        expose_params = _param["docker"]["client"]["service"]
+        expose_params = _param["docker"]["client"]["stack"]["monitoring"]["service"]
         get_port = lambda x: x["ports"][0].split(":")[0]
         return {
             "prometheus_vip": _param["_param"]["prometheus_control_address"],
             "prometheus_server_port":
-                get_port(expose_params["prometheus_server"]),
+                get_port(expose_params["server"]),
             "prometheus_alertmanager":
-                get_port(expose_params["prometheus_alertmanager"]),
+                get_port(expose_params["alertmanager"]),
             "prometheus_pushgateway":
-                get_port(expose_params["prometheus_pushgateway"]),
+                get_port(expose_params["pushgateway"]),
         }
 
     def main(self):
