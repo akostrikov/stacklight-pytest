@@ -66,7 +66,7 @@ class TestProm(BaseLMATest):
         expected_hostnames = [node.address for node in nodes]
         unexpected_hostnames = []
 
-        metrics = self.prometheus_api.get_query("kubelet_running_pod_count")
+        metrics = self.prometheus_api.get_query("etcd_server_has_leader")
 
         for metric in metrics:
             hostname = metric["metric"]["instance"].split(":")[0]
