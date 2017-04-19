@@ -12,7 +12,6 @@ class BaseLMATest(object):
     @classmethod
     def setup_class(cls):
         cls.config = utils.load_config()
-
         nodes = cls.config.get("ssh")
         cls.cluster = objects.Cluster()
 
@@ -28,17 +27,15 @@ class BaseLMATest(object):
         )
 
 class TestProm(BaseLMATest):
-
     def test_prometheus_container(self):
         prometheus_nodes = self.cluster.filter_by_role("prometheus")
         docker_services = \
             prometheus_nodes[0].exec_command(
-                "docker service ls -f name=monitoring_server").splitlines()
-        print docker_services
-        docker_services = docker_services[1]
-        service_id, name, mode, replicas, image = docker_services.split()
-        currnet, planned = replicas.split("/")
-        print "Repliacs", int(currnet)
+                "docker service ls -f name=prometheus_server").splitlines()
+#        docker_services = docker_services[1:]
+#        service_id, name, mode, replicas, image = docker_services.split()
+#        currnet, planned = replicas.split("/")
+#        print "Repliacs", int(currnet)
         for node in prometheus_nodes:
             status = node.exec_command(
                 "docker ps --filter ancestor=prometheus "
@@ -49,7 +46,7 @@ class TestProm(BaseLMATest):
         nodes = self.cluster.filter_by_role("kubernetes")
         expected_hostnames = [node.fqdn.split(".")[0] for node in nodes]
         unexpected_hostnames = []
-   
+
         metrics = self.prometheus_api.get_query("kubelet_running_pod_count")
 
         for metric in metrics:
@@ -76,7 +73,7 @@ class TestProm(BaseLMATest):
                 unexpected_hostnames.append(hostname)
         assert unexpected_hostnames == []
         assert expected_hostnames == []
-      
+
     def test_telegraf_metrics(self):
         nodes = self.cluster.filter_by_role("telegraf")
         expected_hostnames = [node.fqdn.split(".")[0] for node in nodes]

@@ -1,6 +1,6 @@
 import re
 
-from clients import http_client
+from stacklight_tests.clients import http_client
 
 
 class PrometheusMetricClient(http_client.HttpClient):

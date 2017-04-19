@@ -1,4 +1,4 @@
-from clients import http_client
+from stacklight_tests.clients import http_client
 
 
 class BlackBoxExporterClient(http_client.HttpClient):
