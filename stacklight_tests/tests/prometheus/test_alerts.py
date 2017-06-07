@@ -36,6 +36,34 @@ class TestPrometheusAlerts(object):
             check_status()
         check_status(is_fired=False)
 
+    def test_system_mem_alert(self, cluster, prometheus_alerting):
+        """Check that operation system alerts can be fired.
+         Scenario:
+            1. Check that alert is not fired
+            2. start process which will to load mem
+            3. Wait until and check that alert was fired
+            4. kill process which load mem
+            5. Wait until and check that alert was ended
+
+        Duration 10m
+        """
+        ctl = [host for host in cluster.hosts
+               if host.fqdn.startswith("ctl")][0]
+        criteria = {
+            "name": "AvgMemAvailablePercent",
+            "service": "system",
+            }
+        prometheus_alerting.check_alert_status(
+            criteria, is_fired=False, timeout=10 * 60)
+        command = "tail /dev/zero"
+        ctl.exec_command(command)
+        prometheus_alerting.check_alert_status(
+            criteria, is_fired=True, timeout=10 * 60)
+        command = "kill -9 $(ps aux | grep 'tail /dev/zero')"
+        ctl.exec_command(command)
+        prometheus_alerting.check_alert_status(
+            criteria, is_fired=False, timeout=10 * 60)
+
 
 class TestKubernetesAlerts(object):
     @pytest.mark.parametrize(
