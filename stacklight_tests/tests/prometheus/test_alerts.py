@@ -40,27 +40,31 @@ class TestPrometheusAlerts(object):
         """Check that operation system alerts can be fired.
          Scenario:
             1. Check that alert is not fired
-            2. start process which will to load mem
-            3. Wait until and check that alert was fired
-            4. kill process which load mem
-            5. Wait until and check that alert was ended
+            2. Install 'stress' package
+            3. start process which will to load mem
+            4. Wait until and check that alert was fired
+            5. Remove 'stress' package
+            6. Wait until and check that alert was ended
 
-        Duration 10m
+        Duration 15m
         """
-        ctl = [host for host in cluster.hosts
-               if host.fqdn.startswith("ctl")][0]
+        cmp = cluster.filter_by_role("compute")[0]
         criteria = {
             "name": "AvgMemAvailablePercent",
             "service": "system",
-            }
+        }
+        cmp.os.apt_get_install_package("stress")
         prometheus_alerting.check_alert_status(
             criteria, is_fired=False, timeout=10 * 60)
-        command = "tail /dev/zero"
-        ctl.exec_command(command)
+        mem = cmp.os.get_file_content('/proc/meminfo')
+        memory = str(int(mem[mem.find("MemFree") + 8:mem.index(
+            'kB', mem.find("MemFree"), len(mem))]) * 0.95)
+        command = "nohup stress --vm-bytes " + memory + "k --vm-keep -m 1" \
+                  " --timeout 600 &"
+        cmp.exec_command(command)
         prometheus_alerting.check_alert_status(
             criteria, is_fired=True, timeout=10 * 60)
-        command = "kill -9 $(ps aux | grep 'tail /dev/zero')"
-        ctl.exec_command(command)
+        cmp.os.apt_get_remove_package("stress")
         prometheus_alerting.check_alert_status(
             criteria, is_fired=False, timeout=10 * 60)
 
