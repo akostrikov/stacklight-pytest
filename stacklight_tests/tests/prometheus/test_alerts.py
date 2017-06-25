@@ -52,6 +52,7 @@ class TestPrometheusAlerts(object):
         criteria = {
             "name": "AvgMemAvailablePercent",
             "service": "system",
+<<<<<<< HEAD
         }
         cmp.os.apt_get_install_package("stress")
         prometheus_alerting.check_alert_status(
@@ -61,6 +62,15 @@ class TestPrometheusAlerts(object):
             'kB', mem.find("MemFree"), len(mem))]) * 0.95)
         command = "nohup stress --vm-bytes " + memory + "k --vm-keep -m 1" \
                   " --timeout 600 &"
+=======
+            }
+        cmp.os.apt_get_install_package("stress")
+        prometheus_alerting.check_alert_status(
+            criteria, is_fired=False, timeout=10 * 60)
+        command = "stress --vm-bytes $(awk '/MemFree/{printf \"%d\"," \
+                  " $2 * 0.95;}' < /proc/meminfo)k --vm-keep -m 1" \
+                  " --timeout 600"
+>>>>>>> 5e47cf4347e89521a7a2756186c65b06ab3c25dc
         cmp.exec_command(command)
         prometheus_alerting.check_alert_status(
             criteria, is_fired=True, timeout=10 * 60)
