@@ -498,3 +498,28 @@ class TestCinderAlerts(object):
             mon_node.os.manage_service("cinder-api", "start")
         prometheus_alerting.check_alert_status(
             criteria, is_fired=False, timeout=6 * 60)
+
+
+class TestKibanaAlerts(object):
+    def test_procstat_running_kibana_alert(self, cluster, prometheus_alerting):
+        """Check that ProcstatRunningKibana alert can be fired.
+         Scenario:
+            1. Check that alert is not fired
+            2. Stop one kibana service
+            3. Wait until and check that alert was fired
+            4. Start kibana service
+            5. Wait until and check that alert was ended
+        Duration 10m
+        """
+        kibana_node = cluster.filter_by_role("kibana")[0]
+        criteria = {
+            "name": "ProcstatRunningKibana",
+            "service": "kibana",
+        }
+        prometheus_alerting.check_alert_status(criteria, is_fired=False)
+        kibana_node.os.manage_service("kibana", "stop")
+        prometheus_alerting.check_alert_status(
+            criteria, is_fired=True, timeout=6 * 60)
+        kibana_node.os.manage_service("kibana", "start")
+        prometheus_alerting.check_alert_status(
+            criteria, is_fired=False, timeout=6 * 60)
