@@ -494,3 +494,30 @@ class TestCinderAlerts(object):
             mon_node.os.manage_service("cinder-api", "start")
         prometheus_alerting.check_alert_status(
             criteria, is_fired=False, timeout=6 * 60)
+
+
+class TestKeeplivedAlerts(object):
+    def test_procstat_running_keepalived_alert(self, cluster,
+                                               prometheus_alerting):
+        """Check that ProcstatRunningKeepalived alert  can be fired.
+         Scenario:
+            1. Check that alert is not fired
+            2. Stop one keepalived service
+            3. Wait until and check that alert was fired
+            4. Start keepalived service
+            5. Wait until and check that alert was ended
+
+        Duration 10m
+        """
+        keepalived_node = cluster.filter_by_role("keepalived")[-1]
+        criteria = {
+            "name": "ProcstatRunningKeepalived",
+            "service": "keepalived",
+        }
+        prometheus_alerting.check_alert_status(criteria, is_fired=False)
+        keepalived_node.os.manage_service("keepalived", "stop")
+        prometheus_alerting.check_alert_status(
+            criteria, is_fired=True, timeout=6 * 60)
+        keepalived_node.os.manage_service("keepalived", "start")
+        prometheus_alerting.check_alert_status(
+            criteria, is_fired=False, timeout=6 * 60)
