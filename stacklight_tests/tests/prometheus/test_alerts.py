@@ -494,3 +494,29 @@ class TestCinderAlerts(object):
             mon_node.os.manage_service("cinder-api", "start")
         prometheus_alerting.check_alert_status(
             criteria, is_fired=False, timeout=6 * 60)
+
+
+class TestGlusterFSAlerts(object):
+    def test_glusterfs_down_alert(self, cluster, prometheus_alerting):
+        """Check that alerts GlusterFSDown can be fired.
+         Scenario:
+            1. Check that alert is not fired
+            2. Stop one glusterfs-server service
+            3. Wait until and check that alert was fired
+            4. Start glusterfs-server service
+            5. Wait until and check that alert was ended
+
+        Duration 10m
+        """
+        glusterfs_node = cluster.filter_by_role("controller")[0]
+        criteria = {
+            "name": "GlusterFSDown",
+            "service": "glusterfs",
+        }
+        prometheus_alerting.check_alert_status(criteria, is_fired=False)
+        glusterfs_node.os.manage_service("glusterfs-server", "stop")
+        prometheus_alerting.check_alert_status(
+            criteria, is_fired=True, timeout=6 * 60)
+        glusterfs_node.os.manage_service("glusterfs-server", "start")
+        prometheus_alerting.check_alert_status(
+            criteria, is_fired=False, timeout=6 * 60)
