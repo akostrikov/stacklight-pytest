@@ -11,7 +11,7 @@ class TestKibana(object):
 
         Duration 1m
         """
-        assert es_client.log_is_presented('programname:haproxy')
+        assert es_client.log_is_presented('programname=haproxy')
 
     def test_ovs_logs(self, es_client):
         """Check logs for openvswitch programs.
@@ -22,8 +22,8 @@ class TestKibana(object):
         Duration 1m
         """
         entities = {
-            'Logger:ovs AND programname:ovs-vswitchd',
-            'Logger:ovs AND programname:ovsdb-server',
+            'Logger=ovs AND programname=ovs-vswitchd',
+            'Logger=ovs AND programname=ovsdb-server',
         }
         assert not es_client.get_absent_programs_for_group(
             entities, time_range="now-12h")
@@ -37,9 +37,9 @@ class TestKibana(object):
         Duration 1m
         """
         entities = {
-            'Logger:openstack.neutron AND programname:dhcp-agent',
-            'Logger:openstack.neutron AND programname:l3-agent',
-            'Logger:openstack.neutron AND programname:metadata-agent',
+            'Logger=openstack.neutron AND programname=dhcp-agent',
+            'Logger=openstack.neutron AND programname=l3-agent',
+            'Logger=openstack.neutron AND programname=metadata-agent',
         }
         assert not es_client.get_absent_programs_for_group(entities)
 
@@ -51,12 +51,13 @@ class TestKibana(object):
         Duration 1m
         """
         entities = {
-            'Logger:openstack.glance AND programname:api',
-            'Logger:glusterfs AND programname:glusterd',
-            'Logger:openstack.glance AND programname:registry',
-
+            'Logger=openstack.glance AND programname=api',
+            'Logger=glusterfs AND programname=glusterd',
         }
+        entitie_with_tm = 'Logger=openstack.glance AND programname=registry'
         assert not es_client.get_absent_programs_for_group(entities)
+        assert es_client.log_is_presented(entitie_with_tm,
+                                          time_range="now-60d")
 
     def test_keystone_logs(self, es_client):
         """Check logs for keystone.
@@ -75,7 +76,7 @@ class TestKibana(object):
         #     'Logger:openstack.keystone AND programname:keystone-public',
         # }
         entities = {
-            'Logger:openstack.keystone AND programname:keystone',
+            'Logger=openstack.keystone AND programname=keystone',
         }
         assert not es_client.get_absent_programs_for_group(entities)
 
@@ -87,7 +88,7 @@ class TestKibana(object):
         Duration 1m
         """
         # Is it ok that all heat logs are aggregated in one programname?
-        entities = {'Logger:openstack.heat AND programname:heat'}
+        entities = {'Logger=openstack.heat AND programname=heat'}
         assert not es_client.get_absent_programs_for_group(entities)
 
     def test_cinder_logs(self, es_client):
@@ -98,11 +99,11 @@ class TestKibana(object):
         Duration 1m
         """
         entities = {
-            'Logger:openstack.cinder AND programname:cinder-api',
-            'Logger:openstack.cinder AND programname:cinder-backup',
-            'Logger:openstack.cinder AND programname:cinder-scheduler',
-            'Logger:openstack.cinder AND programname:cinder-volume',
-            'Logger:openstack.cinder AND programname:cinder-manage',
+            'Logger=openstack.cinder AND programname=cinder-api',
+            'Logger=openstack.cinder AND programname=cinder-backup',
+            'Logger=openstack.cinder AND programname=cinder-scheduler',
+            'Logger=openstack.cinder AND programname=cinder-volume',
+            'Logger=openstack.cinder AND programname=cinder-manage',
         }
         assert not es_client.get_absent_programs_for_group(entities)
 
@@ -114,13 +115,13 @@ class TestKibana(object):
         Duration 1m
         """
         entities = {
-            'Logger:openstack.nova AND programname:nova-api',
-            'Logger:openstack.nova AND programname:nova-compute',
-            'Logger:openstack.nova AND programname:nova-scheduler',
+            'Logger=openstack.nova AND programname=nova-api',
+            'Logger=openstack.nova AND programname=nova-compute',
+            'Logger=openstack.nova AND programname=nova-scheduler',
         }
 
         absent_logs = es_client.get_absent_programs_for_group(entities)
-        conductor = 'Logger:openstack.nova AND programname:nova-conductor'
+        conductor = 'Logger=openstack.nova AND programname=nova-conductor'
         if not es_client.log_is_presented(conductor, time_range="now-1d"):
             absent_logs.add(conductor)
         assert not absent_logs
@@ -132,7 +133,7 @@ class TestKibana(object):
 
         Duration 1m
         """
-        query_filter = 'Logger:rabbitmq* AND programname:rabbitmq'
+        query_filter = 'Logger=rabbitmq AND programname=rabbitmq'
         assert es_client.log_is_presented(query_filter, time_range="now-1d")
 
     def test_horizon_logs(self, es_client):
@@ -142,7 +143,7 @@ class TestKibana(object):
 
         Duration 1m
         """
-        assert es_client.log_is_presented('programname:horizon*')
+        assert es_client.log_is_presented('programname=horizon')
 
     def test_system_logs(self, es_client):
         """Check logs for linux system.
@@ -153,15 +154,17 @@ class TestKibana(object):
         """
 
         entities = {
-            'Logger:system.auth',
-            'Logger:system.kern',
-            'Logger:system.syslog',
+            'Logger=system.auth',
+            'Logger=system.syslog',
 
         }
         absent_logs = es_client.get_absent_programs_for_group(entities)
-        cron_filter = 'Logger:system* AND programname:CRON'
+        cron_filter = '(Logger=system.auth or Logger=system.syslog)' \
+                      ' AND programname=CRON'
         if not es_client.log_is_presented(cron_filter, time_range="now-30m"):
             absent_logs.add(cron_filter)
+        assert es_client.log_is_presented('Logger=system.kern',
+                                          time_range="now-1w")
         assert not absent_logs
 
     @pytest.mark.check_env("is_mk")
@@ -174,7 +177,7 @@ class TestKibana(object):
         Duration 1m
         """
         assert es_client.log_is_presented(
-            'Logger:contrail.zookeeper AND programname:zookeeper')
+            'Logger=contrail.zookeeper AND programname=zookeeper')
 
     @pytest.mark.check_env("is_mk")
     def test_cassandra_logs(self, es_client):
@@ -186,8 +189,8 @@ class TestKibana(object):
         Duration 1m
         """
         entities = {
-            'Logger:contrail.cassandra.system AND programname:cassandra',
-            'Logger:contrail.cassandra.status AND programname:cassandra',
+            'Logger=contrail.cassandra.system AND programname=cassandra',
+            'Logger=contrail.cassandra.status AND programname=cassandra',
         }
         absent_logs = es_client.get_absent_programs_for_group(entities)
         assert not absent_logs
@@ -202,8 +205,8 @@ class TestKibana(object):
         Duration 1m
         """
         entities = {
-            'Logger:contrail.alarm-gen*',
-            'Logger:contrail.discovery*',
+            'Logger=contrail.alarm-gen',
+            'Logger=contrail.discovery',
         }
         absent_logs = es_client.get_absent_programs_for_group(entities)
         assert not absent_logs
