@@ -1,14 +1,32 @@
 import pytest
+from prettytable import PrettyTable
+import pprint
+
+ignored_queries = [
+    # Default installation does not contain cinder-volume
+    'max(openstack_cinder_services{state="down", service="cinder-volume"})',
+    'max(openstack_cinder_services{service="cinder-volume"}) by (state)',
+    'max(openstack_cinder_services{state="disabled", service="cinder-volume"})',
+    'max(openstack_cinder_services{state="up", service="cinder-volume"})',
+
+    # By default metric is not present if no tracked value
+    'irate(openstack_heat_http_response_times_count{http_status="5xx"}[5m])',
+]
 
 
 def idfy_name(name):
     return name.lower().replace(" ", "-").replace("(", "").replace(")", "")
 
 
+def query_dict_to_string(query_dict):
+    return "\n\n".join(
+        [panel + "\n" + query for panel, query in query_dict.items()])
+
+
 def get_all_grafana_dashboards_names():
     dashboards = {
         "Apache": "apache",
-        "Cassandra": "cassandra-server",
+        "Cassandra": "opencontrail",
         "Calico cluster monitoring (via Prometheus)": "kubernetes",
         "Cinder": "cinder",
         "Docker": "docker",
@@ -33,9 +51,7 @@ def get_all_grafana_dashboards_names():
         "Prometheus Performances": "prometheus",
         "RabbitMQ": "rabbitmq",
         "System": "linux",
-    }
-    not_ready_dashboards = {  # noqa
-        "Remote storage adapter": "",
+        "Remote storage adapter": "influxdb",
         "Grafana": "grafana",
     }
 
@@ -67,25 +83,64 @@ def test_grafana_dashboard_panel_queries(dashboard_fixture, grafana_client):
     dashboard_name = dashboard_fixture
     grafana_client.check_grafana_online()
     dashboard = grafana_client.get_dashboard(dashboard_name, datasource)
+
+    assert dashboard is not None, \
+        "Dashboard {name} is not present".format(name=dashboard_name)
+
     result = dashboard.classify_all_dashboard_queries()
     ok_panels, partially_ok_panels, no_table_panels, failed_panels = result
-    fail_msg = (
-        "Total OK: {len_ok}\n"
-        "No table: {no_table}\n"
-        "Total no table: {len_no}\n"
-        "Partially ok queries: {partially_ok}\n"
-        "Total partially ok: {len_partially_ok}\n"
-        "Failed queries: {failed}\n"
-        "Total failed: {len_fail}".format(
-            len_ok=len(ok_panels),
-            partially_ok=partially_ok_panels.items(),
-            len_partially_ok=len(partially_ok_panels),
-            no_table=no_table_panels.items(),
-            len_no=len(no_table_panels),
-            failed=failed_panels.items(),
-            len_fail=len(failed_panels))
-    )
+
+    ignored_panels = [[loc, query, "Ignored"]
+                      for loc, query in failed_panels.items()
+                      if query in ignored_queries]
+
+    failed_panels = [[loc, query, "Failed"]
+                     for loc, query in failed_panels.items()
+                     if query not in ignored_queries]
+
+    partially_ok_panels_results = []
+
+    for location, query_tuple in partially_ok_panels.items():
+        query, template = query_tuple
+        if query in ignored_queries:
+            ignored_panels.append([location, query, "Ignored"])
+            continue
+
+        partially_ok_panels_results.append([
+            location, query, pprint.pformat(template)
+        ])
+
+    # fail_dict = {
+    #     "Total OK": len(ok_panels),
+    #     "No table": no_table_panels,
+    #     "Total no table": len(no_table_panels),
+    #     "Partially OK queries": partially_ok_panels,
+    #     "Total partially OK": len(partially_ok_panels),
+    #     "Failed queries": failed_panels,
+    #     "Total failed": len(failed_panels),
+    #     "Ignored panels": ignored_panels,
+    #     "Total ignored": len(ignored_panels),
+    # }
+    #
+    # fail_msg = (
+    #     "Total OK: {Total OK}\n"
+    #     "No table: {No table}\n"
+    #     "Total no table: {Total no table}\n"
+    #     "Partially OK queries: {Partially OK queries}\n"
+    #     "Total partially OK: {Total partially OK}\n"
+    #     "Failed queries: {Failed queries}\n"
+    #     "Total failed: {Total failed}".format(
+    #         **fail_dict))
+
+    fail_table = PrettyTable(["Panel", "Query", "Misc"])
+    fail_table.align["Panel"] = "l"
+    fail_table.align["Query"] = "l"
+    fail_table.align["Misc"] = "l"
+
+    for item in failed_panels + ignored_panels + partially_ok_panels_results:
+        fail_table.add_row(item)
+
     assert (ok_panels and not
             partially_ok_panels and not
             no_table_panels and not
-            failed_panels), fail_msg
+            failed_panels), "\n" + fail_table.get_string()
