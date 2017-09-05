@@ -78,7 +78,7 @@ class PrometheusClient(http_client.HttpClient):
     def _do_label_values_query(self, label_values_query):
         pattern = (r"label_values\("
                    r"((?P<query>\w*({.*}){0,1}),){0,1}"
-                   r"(?P<label>\w*)\)")
+                   r"(?P<label>\s*\w*)\)")
         m = re.match(pattern, label_values_query)
         query = m.group("query")
         label = m.group("label")
