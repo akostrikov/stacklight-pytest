@@ -8,7 +8,35 @@ import requests
 from requests.packages.urllib3 import poolmanager
 import yaml
 
-from stacklight_tests import custom_exceptions as exceptions
+import custom_exceptions as exceptions
+
+
+class salt_remote:
+    def cmd(self, tgt, fun, param=None, expr_form=None, tgt_type=None):
+        headers = {'Accept': 'application/json'}
+        login_payload = {'username': os.environ['SALT_USERNAME'],
+                         'password': os.environ['SALT_PASSWORD'], 'eauth': 'pam'}
+        accept_key_payload = {'fun': fun, 'tgt': tgt, 'client': 'local',
+                              'expr_form': expr_form, 'tgt_type': tgt_type,
+                              'timeout': 1}
+        if param:
+            accept_key_payload['arg'] = param
+
+        login_request = requests.post(os.path.join(os.environ['SALT_URL'],
+                                                   'login'),
+                                      headers=headers, data=login_payload)
+        if login_request.ok:
+            request = requests.post(os.environ['SALT_URL'], headers=headers,
+                                    data=accept_key_payload,
+                                    cookies=login_request.cookies)
+            return request.json()['return'][0]
+        else:
+            raise EnvironmentError("401 Not authorized.")
+
+
+def init_salt_client():
+    local = salt_remote()
+    return local
 
 
 class TestHTTPAdapter(requests.adapters.HTTPAdapter):

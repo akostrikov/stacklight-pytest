@@ -74,16 +74,16 @@ class Cluster(object):
 
 class Host(object):
     def __init__(self, address, roles=None, *args, **kwargs):
-        self.os = general_client.GeneralActionsClient(
-            address=address,
-            username=kwargs.get("username", "root"),
-            password=kwargs.get("password"),
-            private_key=kwargs.get("private_key"))
+        #self.os = general_client.GeneralActionsClient(
+        #    address=address,
+        #    username=kwargs.get("username", "root"),
+        #    password=kwargs.get("password"),
+        #    private_key=kwargs.get("private_key"))
 
         self.address = address
         self.roles = roles or []
-        self.exec_command = self.os.exec_command
-        self.check_call = self.os.check_call
+        #self.exec_command = self.os.exec_command
+        #self.check_call = self.os.check_call
         self.fqdn = kwargs.get("hostname") or self.long_hostname
 
     @property
