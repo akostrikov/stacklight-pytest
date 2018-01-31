@@ -1,4 +1,6 @@
 import random
+import re
+import utils
 
 import stacklight_tests.custom_exceptions as exceptions
 from stacklight_tests.clients.system import general_client
@@ -74,22 +76,18 @@ class Cluster(object):
 
 class Host(object):
     def __init__(self, address, roles=None, *args, **kwargs):
-        #self.os = general_client.GeneralActionsClient(
-        #    address=address,
-        #    username=kwargs.get("username", "root"),
-        #    password=kwargs.get("password"),
-        #    private_key=kwargs.get("private_key"))
-
         self.address = address
         self.roles = roles or []
-        #self.exec_command = self.os.exec_command
-        #self.check_call = self.os.check_call
-        self.fqdn = kwargs.get("hostname") or self.long_hostname
+        self.fqdn = kwargs.get("hostname")
 
     @property
     def hostname(self):
-        return self.os.short_hostname
+        return self.fqdn.split('.')[0]
 
     @property
     def long_hostname(self):
-        return self.os.long_hostname
+        return self.fqdn
+
+    def execute_salt(self, cmd):
+        salt = utils.init_salt_client()
+        return salt.cmd(self.fqdn, 'cmd.run', [cmd], expr_form='pcre').values()

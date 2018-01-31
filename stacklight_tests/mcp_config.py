@@ -4,8 +4,8 @@ import socket
 import yaml
 from pprint import pprint
 
-from stacklight_tests import settings
-from stacklight_tests import utils
+import settings
+import utils
 from io import StringIO
 
 class LOG(object):
