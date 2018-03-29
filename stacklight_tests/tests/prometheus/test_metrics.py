@@ -150,7 +150,7 @@ class TestMetrics(object):
             expected_metrics.append("mysql_handler_{}".format(handler))
 
         for host in mysql_hosts:
-            got_metrics = host.os.exec_command(
+            got_metrics = host.execute_salt(
                 "curl -s localhost:9126/metrics | awk '/^mysql/{print $1}'")
             hostname = host.hostname
             for metric in expected_metrics:
@@ -158,4 +158,4 @@ class TestMetrics(object):
                           '",server="/var/run/mysqld/mysqld.sock"}')
                 err_msg = ("Metric {} not found in received list of mysql "
                            "metrics on {} node".format(metric, hostname))
-                assert metric in got_metrics, err_msg
+                assert metric in got_metrics[0].split("\n"), err_msg
