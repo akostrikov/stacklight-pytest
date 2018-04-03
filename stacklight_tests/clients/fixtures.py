@@ -5,6 +5,7 @@ from stacklight_tests.clients import grafana_api
 from stacklight_tests.clients.openstack import client_manager
 from stacklight_tests.clients import influxdb_api
 from stacklight_tests.clients import nagios_api
+from stacklight_tests.clients import salt_api
 from stacklight_tests.clients.prometheus import alertmanager_client
 from stacklight_tests.clients.prometheus import prometheus_client
 
@@ -112,3 +113,8 @@ def os_clients(keystone_config):
 @pytest.fixture(scope="session")
 def os_actions(os_clients):
     return client_manager.OSCliActions(os_clients)
+
+
+@pytest.fixture(scope="session")
+def salt_actions():
+    return salt_api.SaltApi()
