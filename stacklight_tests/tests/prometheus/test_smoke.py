@@ -1,3 +1,4 @@
+import pytest
 import socket
 
 
@@ -16,6 +17,20 @@ class TestPrometheusSmoke(object):
 
     def test_prometheus_datasource(self, prometheus_api):
         assert prometheus_api.get_all_measurements()
+
+    def test_prometheus_relay(self, salt_actions):
+        hosts = salt_actions.ping("I@prometheus:relay")
+        if not hosts:
+            pytest.skip("Prometheus relay is not installed in the cluster")
+        url = salt_actions.get_pillar_item(
+            '*', "_param:grafana_prometheus_address")[0]
+        port = salt_actions.get_pillar_item(
+            hosts[0], "prometheus:relay:bind:port")[0]
+        output = salt_actions.run_cmd(
+            hosts[0],
+            "curl -s {}:{}/metrics | awk '/^prometheus/{{print $1}}'".format(
+                url, port))
+        assert output
 
 
 class TestAlertmanagerSmoke(object):
